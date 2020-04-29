@@ -17,13 +17,14 @@ def train_argparse(train_arguments):
           train_arguments.batch_size,
           train_arguments.learning_rate,
           train_arguments.num_worker,
-          train_arguments.epochs
+          train_arguments.epochs,
+          train_arguments.load_model_dir
          )
 
 
 
 
-def train(model_save_dir, dataset_dir, batch_size, lr, num_worker, num_epoch):
+def train(model_save_dir, dataset_dir, batch_size, lr, num_worker, num_epoch, load_model_dir):
     
     # Initialize a list of transformation
     transform = transforms.Compose(
@@ -34,19 +35,20 @@ def train(model_save_dir, dataset_dir, batch_size, lr, num_worker, num_epoch):
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
 
-    # Set CIFAR100 Dataset
+    # Set CIFAR10 Dataset
     train_dataset = datasets.CIFAR10(dataset_dir, train = True, download = True, transform = transform)
-    # Set CIFAR100 DataLoader
+    # Set CIFAR10 DataLoader
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size = batch_size, shuffle = True, num_workers = num_worker)
     
     # Set Alexnet Model
     model = Alexnet(10)
+    if load_model_dir is not None:
+        model.load_state_dict(torch.load(load_model_dir))
     model.cuda()
     loss_func = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr = lr)
 
     model.train()
-
     
     loss_lis = []
 
@@ -85,10 +87,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser("")
     parser.add_argument("--batch_size", type = int, default = 64, help = "Set the training batch size.")
     parser.add_argument("--num_worker", type = int, default = 2, help = "Set the number of thread used in loading data.")
-    parser.add_argument("--learning_rate", type = float, default = 0.01, help = "Set the learning rate.")
-    parser.add_argument("--dataset_dir", type = str, default = "../data/", help = "Set the location of the dataset.")
+    parser.add_argument("--learning_rate", type = float, default = 0.001, help = "Set the learning rate.")
+    parser.add_argument("--dataset_dir", type = str, default = "../../datasets/", help = "Set the location of the dataset.")
     parser.add_argument("--model_save_dir", type = str, default = "./model/alexnet.pth", help = "Set the location of the model saved") 
     parser.add_argument("--epochs", type = int, default = 100, help = "Set the number of training epoch.")
+    parser.add_argument("--load_model_dir", type = str, default = None, help = "Set if you want to load a model to train.")
     args = parser.parse_args()
 
     train_argparse(args)
