@@ -23,12 +23,11 @@ def test(batch_size):
          transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ]
     )
-    test_dataset = torchvision.datasets.CIFAR10("../data/", download = True, train = False, transform = transform)
+    test_dataset = torchvision.datasets.CIFAR10("../../datasets/", download = True, train = False, transform = transform)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size = batch_size, shuffle = True)
 
     model = Alexnet(10).cuda()
-    model.load_state_dict(torch.load("./model/alexnet.pth"))
-
+    model.load_state_dict(torch.load("./model/alexnet.pth")) 
     classes = ['plane', 'car', 'bird', 'cat',
                'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 
@@ -45,7 +44,7 @@ def test(batch_size):
             print(y)
             
             for j in range(batch_size):
-                print("{}th Picture. Predicted: {}. Actual: {}".format(j, classes[predicted[j]], classes[y.cpu()[j]]))
+                print("{}th Picture. Predicted: {}. Actual: {}".format(j, classes[predicted[j]], classes[y.cpu()[j]])) 
                 tot = tot + 1
                 if predicted[j] == y.cpu()[j]:
                     correct = correct + 1

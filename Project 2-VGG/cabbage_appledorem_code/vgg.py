@@ -8,12 +8,12 @@ import numpy
 import argparse
 
 
+# This is modified to fit the training time and CIFAR100 Model
 cfg = {
         'A' : [64,     'M', 128,      'M', 256, 256,           'M', 512, 512,           'M', 512, 512,           'M'],
         'B' : [64, 64, 'M', 128, 128, 'M', 256, 256,           'M', 512, 512,           'M', 512, 512,           'M'],
         'D' : [64, 64, 'M', 128, 128, 'M', 256, 256, 256,      'M', 512, 512, 512,      'M', 512, 512, 512,      'M'],
         'E' : [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 256, 'M', 512, 512, 512, 512, 'M', 512, 512, 512, 512, 'M']
-    
 }
 
 class VGG(nn.Module):
@@ -21,10 +21,10 @@ class VGG(nn.Module):
         super(VGG, self).__init__()
         
         self.features = self.make_layers(model_type, _batch_norm)
-
         self.classifer = nn.Sequential(
             nn.Linear(512 * 7 * 7, 4096), 
-            nn.ReLU(inplace = True), nn.Dropout(),
+            nn.ReLU(inplace = True), 
+            nn.Dropout(),
             nn.Linear(4096, 4096),
             nn.ReLU(inplace = True),
             nn.Dropout(),
@@ -51,8 +51,7 @@ class VGG(nn.Module):
     def forward(self, x):
         x = self.features(x)
         x = x.view(x.size(0), -1)
-        return self.classifer(x)
-
+        return self.classifer(x) 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("")

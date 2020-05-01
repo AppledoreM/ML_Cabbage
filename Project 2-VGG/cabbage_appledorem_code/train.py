@@ -8,9 +8,11 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy
 from torch.autograd import Variable
 from torch.utils.tensorboard import SummaryWriter
 from vgg import VGG
+from test import test
 
 
 # Yes, it is called Trainer
@@ -42,13 +44,19 @@ class Trainer:
         self.load_model_dir = args.load_model_dir
         self.model_type = args.model_type
 
+    def compute_mean_std(self, dataset):
+        mean = (0.5070751592371323, 0.48654887331495095, 0.4409178433670343)
+        std = (0.2673342858792401, 0.2564384629170883, 0.27615047132568404)
+        return mean, std
+
+
     def train(self):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = VGG(self.model_type, True).to(device)
 
 
         loss_function = torch.nn.CrossEntropyLoss()
-        optimizer = torch.optim.AdamW(model.parameters(), lr = self.learning_rate)
+        optimizer = torch.optim.SGD(model.parameters(), lr = self.learning_rate, weight_decay = 5e-4)
 
 
         start_epoch = 0
@@ -59,32 +67,34 @@ class Trainer:
         if self.load_model_dir is not None:
             checkpoint = torch.load(self.load_model_dir)
             model.load_state_dict(checkpoint['model_state_dict'])
-            optimizer = checkpoint['optimizer_state_dict']
             start_epoch += checkpoint['epoch']
             end_epoch += checkpoint['epoch']
             average_loss_list = checkpoint['average_loss_list']
             for idx, loss in enumerate(average_loss_list):
                 writer.add_scalar("Training Loss Average", loss, idx + 1)
 
+        mean, std = self.compute_mean_std(datasets.CIFAR100(self.dataset_dir, train = True, download = True))
 
+        milestone = [60, 120, 160, 180, 200, 220]
 
         transform_ops = transforms.Compose([
             transforms.RandomHorizontalFlip(),
             transforms.RandomResizedCrop(224),
             transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+            transforms.Normalize(mean, std)
         ])
 
         train_dataset = datasets.CIFAR100(self.dataset_dir, train = True, download = True, transform = transform_ops)
         train_loader = torch.utils.data.DataLoader(train_dataset, batch_size = self.batch_size, shuffle = True, num_workers = self.num_worker)
+        train_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones = milestone, gamma = 0.2)
 
 
         model.train()
 
-
         running_loss = 0 
         running_idx = 0
         running_temp_idx = 0
+
         
         for epoch in range(start_epoch, end_epoch):
             total_loss = 0
@@ -116,21 +126,28 @@ class Trainer:
 
             writer.add_scalar("Training Loss Average", total_loss / len(train_loader), epoch + 1)
             print('Epoch {} Finished! Total Loss: {:.2f}'.format(epoch + 1, total_loss))
+
+            print("---------------Test Initalized!------------------")
+            accuracy = test("", 128, model = model)
+            writer.add_scalar("Test Accuracy", accuracy, epoch + 1)
+
+            train_scheduler.step()
+
             average_loss_list.append(total_loss / len(train_loader))
-            if (epoch + 1) % 5 == 0:
+            if (epoch + 1) % 50 == 0:
                 torch.save({
                     'epoch' : epoch + 1,
                     'model_state_dict' : model.state_dict(),
-                    'optimizer_state_dict' : optimizer.state_dict(),
-                    'average_loss_list' : average_loss_list
+                    'average_loss_list' : average_loss_list,
+                    'model_type' : self.model_type
 
                 }, self.model_save_dir + "vgg-checkpoint-{}.pth".format(epoch + 1))
                 
         torch.save({
             'epoch' : epoch + 1,
             'model_state_dict' : model.state_dict(),
-            'optimizer_state_dict' : optimizer.state_dict(),
-            'average_loss_list' : average_loss_list
+            'average_loss_list' : average_loss_list,
+            'model_type' : self.model_type
         }, self.model_save_dir + "vgg.pth".format(epoch + 1))
 
 
